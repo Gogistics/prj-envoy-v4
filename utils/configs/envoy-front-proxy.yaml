@@ -1,0 +1,118 @@
+# API Envoy IP: 171.10.0.10
+static_resources:
+  listeners:
+  - name: listener_https
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 443    
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: ingress_https
+          http_filters:
+            - name: envoy.filters.http.ratelimit
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.http.ratelimit.v3.RateLimit
+                domain: "atai-tesla-dns-lookup.com"
+                request_type: external
+                stage: 0
+                rate_limited_as_resource_exhausted: true
+                failure_mode_deny: false
+                enable_x_ratelimit_headers: DRAFT_VERSION_03
+                rate_limit_service:
+                  grpc_service:
+                    envoy_grpc:
+                      cluster_name: dns_lookup_service
+                  transport_api_version: V3
+            - name: envoy.filters.http.router
+              typed_config: {}
+          route_config:
+            virtual_hosts:
+            - name: dns_lookup_servers
+              domains: 
+              - "atai-tesla-dns-lookup.com"
+              routes:
+              - match: {prefix: "/dns-lookup"}
+                route:
+                  cluster: dns_lookup_service
+                  rate_limits:
+                    - actions:
+                        - source_cluster: {}
+                        - destination_cluster: {}
+                  retry_policy:
+                    retry_host_predicate:
+                    - name: envoy.retry_host_predicates.previous_hosts
+                    host_selection_retry_max_attempts: 3
+                    retry_priority:
+                      name: envoy.retry_priorities.previous_priorities
+                      typed_config:
+                        "@type": type.googleapis.com/envoy.extensions.retry.priority.previous_priorities.v3.PreviousPrioritiesConfig
+                        update_frequency: 2
+              - match: {prefix: "/"}
+                route:
+                  cluster: nginx_web_server
+      transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+          common_tls_context:
+            alpn_protocols: [ "h2,http/1.1" ]
+            tls_certificates:
+            - certificate_chain: {filename: "/etc/envoy/certs/atai-tesla-dns-lookup.com.crt"}
+              private_key: {filename: "/etc/envoy/certs/atai-tesla-dns-lookup.com.key"}
+            validation_context:
+              trusted_ca:
+                filename: "/etc/ssl/certs/ca-certificates.crt"
+
+  clusters:
+  - name: nginx_web_server
+    connect_timeout: 5s
+    type: STATIC
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: nginx_web_server
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 170.10.0.111
+                port_value: 443
+    transport_socket:
+      name: envoy.transport_sockets.tls
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+
+  - name: dns_lookup_service
+    connect_timeout: 7s
+    type: STATIC
+    lb_policy: RING_HASH
+    http2_protocol_options: {}
+    circuit_breakers:
+      thresholds:
+        max_connections: 10000
+        max_pending_requests: 100
+        max_requests: 100000
+    load_assignment:
+      cluster_name: dns_lookup_service
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 170.10.0.21
+                port_value: 443
+    transport_socket:
+      name: envoy.transport_sockets.tls
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+
+admin:
+  access_log_path: /tmp/admin_access.log
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 8001

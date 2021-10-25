@@ -1,0 +1,16 @@
+# import additional .bazelrc if needed
+
+###############################
+# Release support             #
+###############################
+# Releases should always be stamped with version control info
+build --workspace_status_command=./utils/scripts/bazel_stamp.sh
+
+###############################
+# Output                      #
+###############################
+# A more useful default output mode for bazel query
+query --output=label_kind
+
+# By default, failing test don't print any result, just goes to the log filters
+test --test_output=errors
