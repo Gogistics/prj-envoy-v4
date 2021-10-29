@@ -12,36 +12,74 @@ static_resources:
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           stat_prefix: ingress_https
+          access_log:
+          - name: envoy.access_loggers.stdout
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
           http_filters:
+          # https://www.envoyproxy.io/docs/envoy/latest/api-v3/service/ratelimit/v3/rls.proto#envoy-v3-api-msg-service-ratelimit-v3-ratelimitresponse
             - name: envoy.filters.http.ratelimit
               typed_config:
                 "@type": type.googleapis.com/envoy.extensions.filters.http.ratelimit.v3.RateLimit
-                domain: "atai-tesla-dns-lookup.com"
+                domain: "*"
                 request_type: external
                 stage: 0
                 rate_limited_as_resource_exhausted: true
                 failure_mode_deny: false
-                enable_x_ratelimit_headers: DRAFT_VERSION_03
                 rate_limit_service:
                   grpc_service:
                     envoy_grpc:
-                      cluster_name: dns_lookup_service
+                      cluster_name: ratelimit_service
+                    timeout: 1s
                   transport_api_version: V3
             - name: envoy.filters.http.router
               typed_config: {}
           route_config:
             virtual_hosts:
-            - name: dns_lookup_servers
+            - name: api_servers
               domains: 
-              - "atai-tesla-dns-lookup.com"
+              - "atai-envoy-security.com"
               routes:
-              - match: {prefix: "/dns-lookup"}
+              - match: {prefix: "/api/v1"}
                 route:
-                  cluster: dns_lookup_service
+                  cluster: api_service
                   rate_limits:
                     - actions:
                         - source_cluster: {}
                         - destination_cluster: {}
+                    - actions:
+                      - header_value_match:
+                        {
+                          descriptor_value: "path",
+                          headers: [
+                            {
+                              name: ":path",
+                              prefix_match: "/api/v1",
+                            },
+                          ],
+                        }
+                    - actions:
+                      - header_value_match:
+                        {
+                          descriptor_value: "get",
+                          headers: [
+                            {
+                              name: ":method",
+                              prefix_match: "GET",
+                            }
+                          ],
+                        }
+                    - actions:
+                      - request_headers:
+                        {
+                          descriptor_key: jwt-tkn,
+                          header_name: access_token,
+                        }
+                      - request_headers:
+                        {
+                          descriptor_key: jwt-type,
+                          header_name: token_type,
+                        }
                   retry_policy:
                     retry_host_predicate:
                     - name: envoy.retry_host_predicates.previous_hosts
@@ -61,15 +99,15 @@ static_resources:
           common_tls_context:
             alpn_protocols: [ "h2,http/1.1" ]
             tls_certificates:
-            - certificate_chain: {filename: "/etc/envoy/certs/atai-tesla-dns-lookup.com.crt"}
-              private_key: {filename: "/etc/envoy/certs/atai-tesla-dns-lookup.com.key"}
+            - certificate_chain: {filename: "/etc/envoy/certs/atai-envoy-security.com.crt"}
+              private_key: {filename: "/etc/envoy/certs/atai-envoy-security.com.key"}
             validation_context:
               trusted_ca:
                 filename: "/etc/ssl/certs/ca-certificates.crt"
 
   clusters:
   - name: nginx_web_server
-    connect_timeout: 5s
+    connect_timeout: 3s
     type: STATIC
     lb_policy: ROUND_ROBIN
     load_assignment:
@@ -79,14 +117,14 @@ static_resources:
         - endpoint:
             address:
               socket_address:
-                address: 170.10.0.111
+                address: 181.10.0.31
                 port_value: 443
     transport_socket:
       name: envoy.transport_sockets.tls
       typed_config:
         "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
 
-  - name: dns_lookup_service
+  - name: api_service
     connect_timeout: 7s
     type: STATIC
     lb_policy: RING_HASH
@@ -97,18 +135,56 @@ static_resources:
         max_pending_requests: 100
         max_requests: 100000
     load_assignment:
-      cluster_name: dns_lookup_service
+      cluster_name: api_service
       endpoints:
       - lb_endpoints:
         - endpoint:
             address:
               socket_address:
-                address: 170.10.0.21
+                address: 181.10.0.21
                 port_value: 443
     transport_socket:
       name: envoy.transport_sockets.tls
       typed_config:
         "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+
+  - name: ratelimit_service # register the RateLimitService server
+    connect_timeout: 2s
+    type: LOGICAL_DNS
+    dns_lookup_family: V4_ONLY
+    lb_policy: ROUND_ROBIN
+    http2_protocol_options: {} # enable H2 protocol
+    load_assignment:
+      cluster_name: ratelimit_service
+      endpoints:
+      - lb_endpoints:
+          - endpoint:
+              address:
+                socket_address:
+                  address: 181.10.0.100
+                  port_value: 50000
+    transport_socket:
+      name: envoy.transport_sockets.tls
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+        common_tls_context:
+          tls_certificates:
+          - certificate_chain:
+              filename: "/etc/envoy/certs/atai-envoy-security.com.crt"
+            private_key:
+              filename: "/etc/envoy/certs/atai-envoy-security.com.key"
+
+layered_runtime:
+  layers:
+  - name: static_layer_0
+    static_layer:
+      envoy:
+        resource_limits:
+          listener:
+            example_listener_name:
+              connection_limit: 10000
+      overload:
+        global_downstream_max_connections: 50000
 
 admin:
   access_log_path: /tmp/admin_access.log

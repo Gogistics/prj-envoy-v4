@@ -1,0 +1,4 @@
+exports_files([
+    "envoy-front-proxy.yaml",
+    "custom-nginx.yaml",
+])

@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "utilhandlers",
+    srcs = ["redishandler.go"],
+    importpath = "github.com/Gogistics/prj-envoy-v4/services/ratelimit/utilhandlers",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_go_redis_redis_rate_v9//:go_default_library",
+        "@com_github_go_redis_redis_v8//:go_default_library",
+    ],
+)

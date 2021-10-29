@@ -1,5 +1,5 @@
 # Security (WIP)
-Thanks to NSA for summarizing Zero Trust model, best practice, etc.
+Thanks to NSA for summarizing Zero Trust model, best practices, etc.
 Thanks to OWASP for summarizing top 10 web security risks.
 
 ## Zero Trust
@@ -16,6 +16,7 @@ A security model, a set of system design principles, and a coordinated cybersecu
 - Accepting that all access approvals to critical resources incur risk, and being prepared to perform rapid damage assessment, control, and recovery operations.
 
 ### Guidance
+...
 
 ### Zero Trust Networking
 Zero Trust Networking is an approach to network security that is unified by the principles that the network is always assumed to be hostile. This is in direct contrast to perimeter and "segmentation" approaches that focus on separating the world into trusted and untrusted network segments.
@@ -122,20 +123,228 @@ Ref:
 
 Ref:
 [Envoy Security](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/security)
+[Using Envoy Proxy to Improve Reliability, Security, and Observability of Microservices](https://betterprogramming.pub/using-envoy-proxy-to-improve-reliability-security-and-observability-of-microservices-85032e08d3f4)
 
 ### Zero Trust
 
 Ref:
 [Zero Trust Application Networking with Envoy Proxy](https://www.solo.io/blog/zero-trust-application-networking-with-envoy-proxy/)
 
-### Put theory into practice
+## Put theory into practice
+In general, you would easily find the examples of running ratelimiter with Istio. But here let's learn how Envoy works with the ratelimit server. The container topology of this tutorial is [here](https://drive.google.com/file/d/1S_8GJFm0cAeIoAKJFsJMm4OrcWc5L1m0/view?usp=sharing).  In terms of build tool, Bazel has been used as the build tool of the official Envoy project so let's build the API application, Envoy proxy, ratelimit server, and Redis by Bazel.
 
-* Envoy (v3)
+1. Set up Bazel environment (see Bazel files of this repository for reference)
+Create .bazelrc, .bazelversion, WORKSPACE, root BUILD.bazel, and deps.bzl
 
-* Backend APIs (Golang)
+```sh
+# Bazel tool for Golang applications
+$ bazel run //:gazelle
+
+# update repos deps
+$ bazel run //:gazelle -- update-repos -from_file=go.mod -to_macro=deps.bzl%go_dependencies
+```
+
+2. Generate certs
+```sh
+$ cd utils/
+
+$ openssl genrsa -out certs/ca.key 4096
+
+$ openssl req -x509 -new -nodes -key certs/ca.key -sha256 -days 1024 -out certs/ca.crt
+
+$ openssl genrsa -out certs/atai-envoy-security.com.key 2048
+
+$ openssl req -new -sha256 \
+     -key certs/atai-envoy-security.com.key \
+     -subj "/C=US/ST=CA/O=GOGISTICS, Inc./CN=atai-envoy-security.com" \
+     -out certs/atai-envoy-security.com.csr
+
+$ openssl x509 -req \
+     -in certs/atai-envoy-security.com.csr \
+     -CA certs/ca.crt \
+     -CAkey certs/ca.key \
+     -CAcreateserial \
+     -extfile <(printf "subjectAltName=DNS:atai-envoy-security.com") \
+     -out certs/atai-envoy-security.com.crt \
+     -days 500 \
+     -sha256
+```
+
+3. Run container topology
+Let's manually run the API application and ratelimit server. Once we're sure the ratelimit server works as epected, we can build all images by Bazel and then bring up all containers one by one.
+
+* Initialize Docker network
+```sh
+# In general, the networks of ratelimit server, front proxy, and API services are different; here, let's just create a new network for the sake of simplicity
+$ ./utils/scripts/init_networks.sh
+```
+
+* Spin up Envoy frontend proxy (see utils/configs/envoy-front-proxy.yaml for reference)
+```sh
+$ bazel build --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 //envoys:envoy-front-proxy-v0.0.0
+$ bazel run --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 //envoys:envoy-front-proxy-v0.0.0
+
+$ docker run -d \
+     --name atai-envoy-security-front-proxy \
+     -p 443:443 -p 8001:8001 \
+     --network atai_envoy_security \
+     --ip "181.10.0.10" \
+     --log-opt mode=non-blocking \
+     --log-opt max-buffer-size=5m \
+     --log-opt max-size=100m \
+     --log-opt max-file=5 \
+     alantai/prj-envoy-v4/envoys:envoy-front-proxy-v0.0.0
+```
+
+* Ratelimit server and the corresponding Redis
+```sh
+# run Redis
+$ docker run -d --name atai-envoy-security-ratelimit-redis \
+    --network "atai_envoy_security" \
+    --ip "181.10.0.105" \
+    redis:alpine \
+    redis-server --requirepass "atai-envoy-security-123"
+
+# run ratelimit server
+$ docker run -it \
+    --name atai-envoy-security-ratelimit-server \
+    --network atai_envoy_security \
+    --ip 181.10.0.100 -p 443:443 \
+    -v$(pwd):/app -w /app \
+    golang:1.17-alpine sh
+
+$ docker exec -it atai-envoy-security-ratelimit-server sh
+
+/app \# go run services/ratelimit/server.go -dev
+# Redis-Ping: PONG
+# TCP server is listening at: [::]:50000
+``` 
+
+* Backend API in Golang
+```sh
+```
+
+* Test
+Once all containers have been brought up and the applications are running sucessfully, let's take a look at the ratelimit configuration of Enovy and thencompare it with the testing logs.
+```yaml
+- name: api_servers
+  domains: 
+  - "atai-envoy-security.com"
+  routes:
+  - match: {prefix: "/api/v1"}
+    route:
+      cluster: api_service
+      rate_limits:
+        - actions:
+            - source_cluster: {}
+            - destination_cluster: {}
+        - actions:
+          - header_value_match:
+            {
+              descriptor_value: "path",
+              headers: [
+                {
+                  name: ":path",
+                  prefix_match: "/api/v1",
+                },
+              ],
+            }
+        - actions:
+          - header_value_match:
+            {
+              descriptor_value: "get",
+              headers: [
+                {
+                  name: ":method",
+                  prefix_match: "GET",
+                }
+              ],
+            }
+        - actions:
+          - request_headers:
+            {
+              descriptor_key: jwt-tkn,
+              header_name: access_token,
+            }
+          - request_headers:
+            {
+              descriptor_key: jwt-type,
+              header_name: token_type,
+            }
+```
+
+```sh
+# send a request to API server
+$ curl --header "access_token:abcdefg123456" --header "token_type:Bearer" -k -v https://atai-envoy-security.com/api/v1
+# *   Trying 0.0.0.0...
+# * TCP_NODELAY set
+# * Connected to atai-envoy-security.com (127.0.0.1) port 443 (#0)
+# * ALPN, offering h2
+# * ALPN, offering http/1.1
+# * successfully set certificate verify locations:
+# *   CAfile: /etc/ssl/cert.pem
+#   CApath: none
+# * TLSv1.2 (OUT), TLS handshake, Client hello (1):
+# * TLSv1.2 (IN), TLS handshake, Server hello (2):
+# * TLSv1.2 (IN), TLS handshake, Certificate (11):
+# * TLSv1.2 (IN), TLS handshake, Server key exchange (12):
+# * TLSv1.2 (IN), TLS handshake, Request CERT (13):
+# * TLSv1.2 (IN), TLS handshake, Server finished (14):
+# * TLSv1.2 (OUT), TLS handshake, Certificate (11):
+# * TLSv1.2 (OUT), TLS handshake, Client key exchange (16):
+# * TLSv1.2 (OUT), TLS change cipher, Change cipher spec (1):
+# * TLSv1.2 (OUT), TLS handshake, Finished (20):
+# * TLSv1.2 (IN), TLS change cipher, Change cipher spec (1):
+# * TLSv1.2 (IN), TLS handshake, Finished (20):
+# * SSL connection using TLSv1.2 / ECDHE-RSA-CHACHA20-POLY1305
+# * ALPN, server accepted to use h2
+# * Server certificate:
+# *  subject: C=US; ST=CA; O=GOGISTICS, Inc.; CN=atai-envoy-security.com
+# *  start date: Oct 25 19:02:42 2021 GMT
+# *  expire date: Mar  9 19:02:42 2023 GMT
+# *  issuer: C=TW; ST=Taiwan; L=Kaohsiung; O=Gogistics; OU=DevOps; emailAddress=gogistics@gogistcs-tw.com
+# *  SSL certificate verify result: unable to get local issuer certificate (20), continuing anyway.
+# * Using HTTP2, server supports multi-use
+# * Connection state changed (HTTP/2 confirmed)
+# * Copying HTTP/2 data in stream buffer to connection buffer after upgrade: len=0
+# * Using Stream ID: 1 (easy handle 0x7fd7ce810a00)
+# > GET /api/v1 HTTP/2
+# > Host: atai-envoy-security.com
+# > User-Agent: curl/7.64.1
+# > Accept: */*
+# > access_token:abcdefg123456
+# > token_type:Bearer
+# > 
+# * Connection state changed (MAX_CONCURRENT_STREAMS == 2147483647)!
+# < HTTP/2 200 
+# < content-type: application/json; charset=utf-8
+# < content-length: 30
+# < date: Sun, 31 Oct 2021 23:37:10 GMT
+# < x-envoy-upstream-service-time: 6
+# < server: envoy
+# < 
+# * Connection #0 to host atai-envoy-security.com left intact
+# {"Msg":"Hello Envoy security"}* Closing connection 0
+
+# Switch to the terminal of running ratelimit server and you can see the logs as below:
+/app \# go run services/ratelimit/server.go -dev
+# Redis-Ping: PONG
+# TCP server is listening at: [::]:50000
+# 2021/11/01 00:24:49 Client request: domain:"*" descriptors:{entries:{key:"source_cluster"} entries:{key:"destination_cluster" value:"api_service"}} descriptors:{entries:{key:"header_match" value:"path"}} descriptors:{entries:{key:"header_match" value:"get"}} descriptors:{entries:{key:"jwt-tkn" value:"abcdefg123456"} entries:{key:"jwt-type" value:"Bearer"}}
+# Request type: *envoy_service_ratelimit_v3.RateLimitRequest
+# key: source_cluster ; value: 
+# key: destination_cluster ; value: api_service
+# key: header_match ; value: path
+# key: header_match ; value: get
+# key: jwt-tkn ; value: abcdefg123456
+# key: jwt-type ; value: Bearer
+# allowed:  1 remaining:  1
+# 2021/11/01 00:24:49 Client request: overall_code:OK
+# ...
+```
 
 * Frontend (React)
 ```sh
 # package.json
-# "start": "HTTPS=true HOST=0.0.0.0 PORT=443 SSL_CRT_FILE=./certs/atai-tesla-dns-lookup.com.crt SSL_KEY_FILE=./certs/atai-tesla-dns-lookup.com.key react-scripts start",
+# "start": "HTTPS=true HOST=0.0.0.0 PORT=443 SSL_CRT_FILE=./certs/atai-envoy-security.com.crt SSL_KEY_FILE=./certs/atai-envoy-security.com.key react-scripts start",
 ```

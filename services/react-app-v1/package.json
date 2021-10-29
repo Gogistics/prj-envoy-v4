@@ -25,7 +25,7 @@
     "web-vitals": "^1.0.1"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "HTTPS=true HOST=0.0.0.0 PORT=443 SSL_CRT_FILE=./certs/atai-envoy-security.com.crt SSL_KEY_FILE=./certs/atai-envoy-security.com.key react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

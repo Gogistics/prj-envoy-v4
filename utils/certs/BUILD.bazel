@@ -1,0 +1,6 @@
+# For production, certs should not be exported this way; the optimal practice is to import certs during build
+exports_files([
+    "atai-envoy-security.com.crt",
+    "atai-envoy-security.com.key",
+    "custom-ca-certificates.crt",
+])

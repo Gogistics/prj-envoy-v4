@@ -1,4 +1,19 @@
-# Getting Started with Create React App
+# React frontend
+
+```sh
+$ docker run -it --name atai-react-test \
+    --network atai_envoy_security \
+    --ip "181.10.0.31" \
+    -v $(pwd):/app \
+    -w /app \
+    --log-opt mode=non-blocking \
+    --log-opt max-buffer-size=5m \
+    --log-opt max-size=100m \
+    --log-opt max-file=5 \
+    node:16-alpine sh
+```
+
+# Getting Started with Create React App (Official)
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 

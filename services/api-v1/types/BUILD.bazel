@@ -1,0 +1,8 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "types",
+    srcs = ["dns.go"],
+    importpath = "github.com/Gogistics/prj-envoy-v4/services/api-v1/types",
+    visibility = ["//visibility:public"],
+)

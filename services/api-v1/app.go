@@ -21,19 +21,21 @@ var (
 func setFlagsVals() {
 	port = flag.Uint("port", 443, "set port")
 	crtPath = flag.String("crtPath", "", "set crtPath")
-	keyPath = flag.String("keyPath", "/.ssh/atai-zero-trust.com.key", "set keyPath")
+	keyPath = flag.String("keyPath", "", "set keyPath")
 	dev = flag.Bool("dev", false, "set dev mode")
 	flag.Parse()
 }
 func setCertsPaths() {
 	if *dev && len(*crtPath) == 0 {
-		*crtPath = "./utils/certs/atai-zero-trust.com.crt"
+		*crtPath = "./utils/certs/atai-envoy-security.com.crt"
 	}
 	if *dev && len(*keyPath) == 0 {
-		*keyPath = "./utils/certs/atai-zero-trust.com.key"
+		*keyPath = "./utils/certs/atai-envoy-security.com.key"
 	}
+	fmt.Println("crt: ", *crtPath, " ; key: ", *keyPath)
 }
-func int() {
+
+func init() {
 	setFlagsVals()
 	setCertsPaths()
 }

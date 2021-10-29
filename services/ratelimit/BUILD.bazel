@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "ratelimit_lib",
+    srcs = ["server.go"],
+    importpath = "github.com/Gogistics/prj-envoy-v4/services/ratelimit",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//services/ratelimit/utilhandlers",
+        "@com_github_envoyproxy_go_control_plane//envoy/service/ratelimit/v3:go_default_library",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//credentials:go_default_library",
+        "@org_golang_google_grpc//keepalive:go_default_library",
+        "@org_golang_google_grpc//reflection:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "ratelimit",
+    embed = [":ratelimit_lib"],
+    visibility = ["//visibility:public"],
+)

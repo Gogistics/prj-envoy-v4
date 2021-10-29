@@ -1,0 +1,31 @@
+load("@io_bazel_rules_docker//container:container.bzl", "container_image", "container_push")
+
+filegroup(
+    name = "certs",
+    srcs = [
+        "//utils/certs:atai-envoy-security.com.crt",
+        "//utils/certs:atai-envoy-security.com.key",
+        "//utils/certs:custom-ca-certificates.crt",
+    ]
+)
+filegroup(
+    name = "envoy-front-proxy-config-execution",
+    srcs = [
+        "//utils/configs:envoy-front-proxy.yaml",
+        "//utils/scripts:run-envoy-front-proxy.sh",
+    ],
+)
+
+container_image(
+    name = "envoy-front-proxy-v0.0.0",  # image tag
+    base = "@alpine_envoy//image",
+    entrypoint = [
+        "/run-envoy-front-proxy.sh",
+    ],
+    files = [
+        ":certs",
+        ":envoy-front-proxy-config-execution",
+    ],
+    repository = "alantai/prj-envoy-v4",
+    visibility = ["//visibility:public"],
+)
