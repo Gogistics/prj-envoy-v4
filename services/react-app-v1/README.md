@@ -1,4 +1,4 @@
-# React frontend
+# React frontend application
 
 ```sh
 $ docker run -it --name atai-react-test \
@@ -12,6 +12,37 @@ $ docker run -it --name atai-react-test \
     --log-opt max-file=5 \
     node:16-alpine sh
 ```
+
+Ref:
+[react warning computedMatch regarding some case issues](https://stackoverflow.com/questions/51971449/react-warning-computedmatch-regarding-some-case-issues)
+
+## Styling
+Material-UI v5
+
+Ref:
+[Migrate from v4 to v5](https://mui.com/guides/migration-v4/)
+
+## Security
+Following OWASP recommendation to enhance the security of the frontend application.
+
+Topics:
+* Injection attacks
+* Cookie security
+* `use strict`
+
+
+Ref:
+- [JSX Prevents Injection Attacks](https://reactjs.org/docs/introducing-jsx.html#jsx-prevents-injection-attacks)
+- [Document.cookie](https://developer.mozilla.org/en-US/docs/Web/API/Document/cookie)
+
+## Testing
+
+Ref:
+- [Comparing the Selenium and Cypress Testing Frameworks](https://saucelabs.com/blog/comparing-the-selenium-and-cypress-testing-frameworks)
+
+
+---
+
 
 # Getting Started with Create React App (Official)
 

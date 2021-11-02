@@ -53,5 +53,5 @@ func initRedisClientWrapper() redisClientWrapper {
 }
 
 func (rlWrapper *rateLimiterWrapper) Allow(key string) (*redis_rate.Result, error) {
-	return rlWrapper.limiter.Allow(rlCtx, key, redis_rate.PerSecond(3))
+	return rlWrapper.limiter.Allow(rlCtx, key, redis_rate.PerSecond(10))
 }

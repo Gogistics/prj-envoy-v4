@@ -131,7 +131,24 @@ Ref:
 [Zero Trust Application Networking with Envoy Proxy](https://www.solo.io/blog/zero-trust-application-networking-with-envoy-proxy/)
 
 ## Put theory into practice
-In general, you would easily find the examples of running ratelimiter with Istio. But here let's learn how Envoy works with the ratelimit server. The container topology of this tutorial is [here](https://drive.google.com/file/d/1S_8GJFm0cAeIoAKJFsJMm4OrcWc5L1m0/view?usp=sharing).  In terms of build tool, Bazel has been used as the build tool of the official Envoy project so let's build the API application, Envoy proxy, ratelimit server, and Redis by Bazel.
+After going over Zero Trust security and OWASP top 10, let's learn how to improve the security of the web services ,proxies, etc. based on the theories that we just learned.
+
+**TLS**: This is an encryption protocol that allows client/server applications to communicate over the Internet in a way that is designed to prevent eavesdropping tampering, and message forgery.
+
+Ref: [ The Transport Layer Security (TLS) Protocol Version 1.3](https://datatracker.ietf.org/doc/html/draft-ietf-tls-tls13-28)
+
+**Ratelimit**: This is a mechanism to limit the amount of requests within a certain time span to make sure the destination cluster is not overloaded and to prevent the services from DoS. In general, you would easily find the examples of running ratelimiter with Istio. But here let's learn how Envoy works with the ratelimit server. The container topology of this tutorial is [here](https://drive.google.com/file/d/1S_8GJFm0cAeIoAKJFsJMm4OrcWc5L1m0/view?usp=sharing).  In terms of build tool, Bazel has been used as the build tool of the official Envoy project so let's build the API application, Envoy proxy, ratelimit server, and Redis by Bazel.
+
+Ref: [RateLimit Header Fields for HTTP](https://tools.ietf.org/id/draft-polli-ratelimit-headers-00.html)
+
+**Circuit Breakers**: This is a mechanism to stop the requests in advance to make sure the cluster is not overloaded and to prevent the services from DoS.
+
+Ref: [Circuit breaking](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/circuit_breaking)
+
+**JSON Web Token (JWT) Authentication**: JSON Web Token (JWT) is a compact, URL-safe means of representing claims to be transferred between two parties.  The claims in a JWT are encoded as a JSON object that is used as the payload of a JSON Web Signature (JWS) structure or as the plaintext of a JSON Web Encryption (JWE) structure, enabling the claims to be digitally signed or integrity protected with a Message Authentication Code (MAC) and/or encrypted.
+
+Ref: [JSON Web Token (JWT)](https://datatracker.ietf.org/doc/html/rfc7519)
+
 
 1. Set up Bazel environment (see Bazel files of this repository for reference)
 Create .bazelrc, .bazelversion, WORKSPACE, root BUILD.bazel, and deps.bzl

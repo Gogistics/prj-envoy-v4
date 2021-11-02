@@ -78,11 +78,6 @@ func (srv *server) ShouldRateLimit(ctx context.Context, req *rlService.RateLimit
 	log.Printf("Client request: %v\n", req)
 	fmt.Printf("Request type: %v\n", reflect.TypeOf(req))
 	domain := req.Domain
-	for _, descriptor := range req.Descriptors {
-		for _, entry := range descriptor.Entries {
-			fmt.Printf("key: %s ; value: %s\n", entry.Key, entry.Value)
-		}
-	}
 
 	// todo: remove hardcode
 	res, err := rlWrapper.Allow(domain)
@@ -93,13 +88,26 @@ func (srv *server) ShouldRateLimit(ctx context.Context, req *rlService.RateLimit
 
 	// todo: update the code to use redis ratelimiter
 	var overallCode rlService.RateLimitResponse_Code
-	if srv.limit {
-		overallCode = rlService.RateLimitResponse_OVER_LIMIT
-		srv.limit = false
-	} else {
-		overallCode = rlService.RateLimitResponse_OK
-		srv.limit = true
+
+	for _, descriptor := range req.Descriptors {
+		for _, entry := range descriptor.Entries {
+			fmt.Printf("key: %s ; value: %s\n", entry.Key, entry.Value)
+
+			if entry.Key == "destination_cluster" && entry.Value == "nginx_web_server" {
+				fmt.Print("frontend request...")
+				overallCode = rlService.RateLimitResponse_OK
+			} else {
+				// todo: refactor the code to be more useful for prd
+				fmt.Print("api request...")
+				if res.Allowed == 0 && res.Remaining == 0 {
+					overallCode = rlService.RateLimitResponse_OVER_LIMIT
+				} else {
+					overallCode = rlService.RateLimitResponse_OK
+				}
+			}
+		}
 	}
+
 	rlResponse := &rlService.RateLimitResponse{OverallCode: overallCode}
 	log.Printf("Client request: %v\n", rlResponse)
 	return rlResponse, nil
