@@ -29,6 +29,7 @@ Topics:
 * Injection attacks
 * Cookie security
 * `use strict`
+* Be careful about shallow clone
 
 
 Ref:

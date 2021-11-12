@@ -162,6 +162,7 @@ $ bazel run //:gazelle -- update-repos -from_file=go.mod -to_macro=deps.bzl%go_d
 ```
 
 2. Generate certs
+The following commands are for generating regular certs. If need to generate wildcard certs, [here](https://rkakodker.medium.com/how-to-simple-way-of-generating-wildcard-san-ssl-csrs-for-product-managers-8c25d715d86f) is a good reference.
 ```sh
 $ cd utils/
 
