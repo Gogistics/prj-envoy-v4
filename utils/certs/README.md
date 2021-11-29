@@ -54,3 +54,6 @@ $ openssl x509 -req \
      -days 500 \
      -sha256
 ```
+
+Ref:
+- [Simple way of generating Wildcard/SAN SSL CSRs for Product Managers](https://rkakodker.medium.com/how-to-simple-way-of-generating-wildcard-san-ssl-csrs-for-product-managers-8c25d715d86f)

@@ -130,6 +130,7 @@ Ref:
 Ref:
 [Zero Trust Application Networking with Envoy Proxy](https://www.solo.io/blog/zero-trust-application-networking-with-envoy-proxy/)
 
+
 ## Put theory into practice
 After going over Zero Trust security and OWASP top 10, let's learn how to improve the security of the web services ,proxies, etc. based on the theories that we just learned.
 
@@ -141,6 +142,7 @@ Ref: [ The Transport Layer Security (TLS) Protocol Version 1.3](https://datatrac
 
 Ref: [RateLimit Header Fields for HTTP](https://tools.ietf.org/id/draft-polli-ratelimit-headers-00.html)
 
+
 **Circuit Breakers**: This is a mechanism to stop the requests in advance to make sure the cluster is not overloaded and to prevent the services from DoS.
 
 Ref: [Circuit breaking](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/circuit_breaking)
@@ -149,6 +151,16 @@ Ref: [Circuit breaking](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_o
 
 Ref: [JSON Web Token (JWT)](https://datatracker.ietf.org/doc/html/rfc7519)
 
+**MIS**
+
+* Traffic shadowing: The router is capable of shadowing traffic from one cluster to another. The current implementation is “fire and forget,” meaning Envoy will not wait for the shadow cluster to respond before returning the response from the primary cluster. All normal statistics are collected for the shadow cluster making this feature useful for testing. Besides testing, traffic shadowing is also useful for the API migration because sometimes both depcrecated and new endpoints need to keep for a while.
+
+Ref:
+- [config.route.v3.RouteAction.RequestMirrorPolicy¶](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto#config-route-v3-routeaction-requestmirrorpolicy)
+- [Traffic shadowing](https://blog.markvincze.com/shadow-mirroring-with-envoy/)
+
+
+**Steps**:
 
 1. Set up Bazel environment (see Bazel files of this repository for reference)
 Create .bazelrc, .bazelversion, WORKSPACE, root BUILD.bazel, and deps.bzl
@@ -188,7 +200,7 @@ $ openssl x509 -req \
      -sha256
 ```
 
-3. Run container topology
+3. Bring up network/container topology
 Let's manually run the API application and ratelimit server. Once we're sure the ratelimit server works as epected, we can build all images by Bazel and then bring up all containers one by one.
 
 * Initialize Docker network
