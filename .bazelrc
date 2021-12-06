@@ -12,5 +12,5 @@ build --workspace_status_command=./utils/scripts/bazel_stamp.sh
 # A more useful default output mode for bazel query
 query --output=label_kind
 
-# By default, failing test don't print any result, just goes to the log filters
+# By default, failing tests don't print any result, just go to the log filters
 test --test_output=errors

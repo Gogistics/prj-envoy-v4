@@ -156,7 +156,7 @@ Ref: [JSON Web Token (JWT)](https://datatracker.ietf.org/doc/html/rfc7519)
 * Traffic shadowing: The router is capable of shadowing traffic from one cluster to another. The current implementation is “fire and forget,” meaning Envoy will not wait for the shadow cluster to respond before returning the response from the primary cluster. All normal statistics are collected for the shadow cluster making this feature useful for testing. Besides testing, traffic shadowing is also useful for the API migration because sometimes both depcrecated and new endpoints need to keep for a while.
 
 Ref:
-- [config.route.v3.RouteAction.RequestMirrorPolicy¶](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto#config-route-v3-routeaction-requestmirrorpolicy)
+- [config.route.v3.RouteAction.RequestMirrorPolicy](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto#config-route-v3-routeaction-requestmirrorpolicy)
 - [Traffic shadowing](https://blog.markvincze.com/shadow-mirroring-with-envoy/)
 
 
